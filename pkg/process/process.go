@@ -256,11 +256,11 @@ func initProcessInternalClone(event *tetragonAPI.MsgCloneEvent,
 			"event.parent.exec_id":  parentExecId,
 		}).Debug("CloneEvent: process PID and TID mismatch")
 	}
+	// Set the TID here and if we have an exit without an exec we report
+	// directly this TID without copying again objects.
+	// At kprobe times we use the returned TIDs from bpf side.
+	pi.process.Tid = &wrapperspb.UInt32Value{Value: event.PID}
 
-	// This TID will be updated by the TID of the bpf execve event later,
-	// so set it to zero here and ensure that it will be updated later.
-	// Exported events must always be generated with a non zero TID.
-	pi.process.Tid = &wrapperspb.UInt32Value{Value: 0}
 	pi.process.Flags = strings.Join(exec.DecodeCommonFlags(event.Flags), " ")
 	pi.process.StartTime = ktime.ToProto(event.Ktime)
 	pi.process.Refcnt = 1
