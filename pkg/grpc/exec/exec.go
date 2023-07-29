@@ -288,6 +288,15 @@ func GetProcessExit(event *MsgExitEventUnix) *tetragon.ProcessExit {
 	code := event.Info.Code >> 8
 	signal := readerexec.Signal(event.Info.Code & 0xFF)
 
+	// Ensure that we get PID == TID
+	if event.ProcessKey.Pid != event.Info.Tid {
+		logger.GetLogger().WithFields(logrus.Fields{
+			"event.name":        "Exit",
+			"event.process.pid": event.ProcessKey.Pid,
+			"event.process.tid": event.Info.Tid,
+		}).Debug("ExitEvent: process PID and TID mismatch")
+	}
+
 	tetragonEvent := &tetragon.ProcessExit{
 		Process: tetragonProcess,
 		Parent:  tetragonParent,
@@ -306,10 +315,9 @@ func GetProcessExit(event *MsgExitEventUnix) *tetragon.ProcessExit {
 		parent.RefDec()
 	}
 	if proc != nil {
-		tetragonEvent.Process = proc.GetProcessCopy()
+		// Use cached version of process
+		tetragonEvent.Process = proc.UnsafeGetProcess()
 		proc.RefDec()
-		// Use the bpf recorded TID to update the event
-		process.UpdateEventProcessTid(tetragonEvent.Process, &event.Info.Tid)
 	}
 	return tetragonEvent
 }
@@ -339,13 +347,12 @@ func (msg *MsgExitEventUnix) RetryInternal(ev notify.Event, timestamp uint64) (*
 	}
 
 	if internal != nil {
+		// Use cached version of the process
+		ev.SetProcess(internal.UnsafeGetProcess())
 		if !msg.RefCntDone[ProcessRefCnt] {
 			internal.RefDec()
 			msg.RefCntDone[ProcessRefCnt] = true
 		}
-		proc := internal.GetProcessCopy()
-		// Update the Process TID with the recorded one from BPF side
-		process.UpdateEventProcessTid(proc, &msg.Info.Tid)
 	} else {
 		errormetrics.ErrorTotalInc(errormetrics.EventCacheProcessInfoFailed)
 		err = eventcache.ErrFailedToGetProcessInfo
@@ -358,7 +365,7 @@ func (msg *MsgExitEventUnix) RetryInternal(ev notify.Event, timestamp uint64) (*
 }
 
 func (msg *MsgExitEventUnix) Retry(internal *process.ProcessInternal, ev notify.Event) error {
-	return eventcache.HandleGenericEvent(internal, ev, &msg.Info.Tid)
+	return eventcache.HandleGenericEvent(internal, ev, nil)
 }
 
 func (msg *MsgExitEventUnix) HandleMessage() *tetragon.GetEventsResponse {

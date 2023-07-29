@@ -204,13 +204,29 @@ func initProcessInternalExec(
 	protoPod, endpoint := GetPodInfo(containerID, process.Filename, args, process.NSPID)
 	caps := caps.GetMsgCapabilities(capabilities)
 	ns := namespace.GetMsgNamespaces(namespaces)
+	binary := path.GetBinaryAbsolutePath(process.Filename, cwd)
+
+	// Ensure that exported events have the TID set. For events from Kernel
+	// we usually use PID == 0, so instead of checking against 0, assert that
+	// TGID == TID
+	if process.PID != process.TID {
+		logger.GetLogger().WithFields(logrus.Fields{
+			"event.name":            "Execve",
+			"event.process.pid":     process.PID,
+			"event.process.tid":     process.TID,
+			"event.process.binary":  binary,
+			"event.process.exec_id": execID,
+			"event.parent.exec_id":  parentExecID,
+		}).Warn("ExecveEvent: process PID and TID mismatch")
+		process.TID = process.PID
+	}
 	return &ProcessInternal{
 		process: &tetragon.Process{
 			Pid:          &wrapperspb.UInt32Value{Value: process.PID},
 			Tid:          &wrapperspb.UInt32Value{Value: process.TID},
 			Uid:          &wrapperspb.UInt32Value{Value: process.UID},
 			Cwd:          cwd,
-			Binary:       path.GetBinaryAbsolutePath(process.Filename, cwd),
+			Binary:       binary,
 			Arguments:    args,
 			Flags:        strings.Join(exec.DecodeCommonFlags(process.Flags), " "),
 			StartTime:    ktime.ToProtoOpt(process.Ktime, (process.Flags&api.EventProcFS) == 0),
@@ -310,19 +326,6 @@ func AddExecEvent(event *tetragonAPI.MsgExecveEventUnix) *ProcessInternal {
 		proc, _ = initProcessInternalExec(event.Process, event.Kube.Docker, event.Parent, event.Capabilities, event.Namespaces)
 	} else {
 		proc, _ = initProcessInternalExec(event.Process, event.Kube.Docker, event.CleanupProcess, event.Capabilities, event.Namespaces)
-	}
-
-	// Ensure that exported events have the TID set. For events from Kernel
-	// we usually use PID == 0, so instead of checking against 0, assert that
-	// TGID == TID
-	if proc.process.Pid.GetValue() != proc.process.Tid.GetValue() {
-		logger.GetLogger().WithFields(logrus.Fields{
-			"event.name":            "Execve",
-			"event.process.pid":     proc.process.Pid.GetValue(),
-			"event.process.tid":     proc.process.Tid.GetValue(),
-			"event.process.exec_id": proc.process.ExecId,
-			"event.process.binary":  proc.process.Binary,
-		}).Warn("ExecveEvent: process PID and TID mismatch")
 	}
 
 	procCache.add(proc)
