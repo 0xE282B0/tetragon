@@ -32,10 +32,12 @@
     - [Namespaces](#tetragon-Namespaces)
     - [Pod](#tetragon-Pod)
     - [Pod.PodLabelsEntry](#tetragon-Pod-PodLabelsEntry)
+    - [PrivilegedExec](#tetragon-PrivilegedExec)
     - [Process](#tetragon-Process)
     - [ProcessCredentials](#tetragon-ProcessCredentials)
     - [ProcessExec](#tetragon-ProcessExec)
     - [ProcessExit](#tetragon-ProcessExit)
+    - [ProcessInfo](#tetragon-ProcessInfo)
     - [ProcessKprobe](#tetragon-ProcessKprobe)
     - [ProcessLoader](#tetragon-ProcessLoader)
     - [ProcessTracepoint](#tetragon-ProcessTracepoint)
@@ -641,6 +643,23 @@ https://github.com/opencontainers/runtime-spec/blob/main/config.md#createcontain
 
 
 
+<a name="tetragon-PrivilegedExec"></a>
+
+### PrivilegedExec
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| setuid | [google.protobuf.UInt32Value](#google-protobuf-UInt32Value) |  | The set user ID used for execution |
+| setgid | [google.protobuf.UInt32Value](#google-protobuf-UInt32Value) |  | The set group ID used for execution |
+| flags | [string](#string) |  | Indicate the reason of this privileged execution |
+
+
+
+
+
+
 <a name="tetragon-Process"></a>
 
 ### Process
@@ -666,6 +685,7 @@ https://github.com/opencontainers/runtime-spec/blob/main/config.md#createcontain
 | ns | [Namespaces](#tetragon-Namespaces) |  | Linux namespaces of the process, disabled by default, can be enabled by the `--enable-process-ns` flag. |
 | tid | [google.protobuf.UInt32Value](#google-protobuf-UInt32Value) |  | Thread ID, note that for the thread group leader, tid is equal to pid. |
 | process_credentials | [ProcessCredentials](#tetragon-ProcessCredentials) |  | Process credentials |
+| info | [ProcessInfo](#tetragon-ProcessInfo) |  | Extra information about the process and its execution |
 
 
 
@@ -727,6 +747,21 @@ https://github.com/opencontainers/runtime-spec/blob/main/config.md#createcontain
 | signal | [string](#string) |  | Signal that the process received when it exited, for example SIGKILL or SIGTERM (list all signal names with `kill -l`). If there is no signal handler implemented for a specific process, we report the exit status code that can be found in the status field. |
 | status | [uint32](#uint32) |  | Status code on process exit. For example, the status code can indicate if an error was encountered or the program exited successfully. |
 | time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | Date and time of the event. |
+
+
+
+
+
+
+<a name="tetragon-ProcessInfo"></a>
+
+### ProcessInfo
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| privileged_exec | [PrivilegedExec](#tetragon-PrivilegedExec) |  |  |
 
 
 

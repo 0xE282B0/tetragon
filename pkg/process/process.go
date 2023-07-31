@@ -226,6 +226,22 @@ func initProcessInternalExec(
 		Caps: caps,
 		UserNs: userns,
 	}
+	privs := false
+	privileged := &tetragon.PrivilegedExec{}
+	if cred.Uid != cred.Euid {
+		privs = true
+		privileged.Setuid = &wrapperspb.UInt32Value{Value: cred.Euid}
+	}
+	if cred.Gid != cred.Egid {
+		privs = true
+		privileged.Setgid = &wrapperspb.UInt32Value{Value: cred.Egid}
+	}
+	info := &tetragon.ProcessInfo{}
+	if privs {
+		info.PrivilegedExec = privileged 
+	} else {
+		info = nil
+	}
 	return &ProcessInternal{
 		process: &tetragon.Process{
 			Pid:                &wrapperspb.UInt32Value{Value: process.PID},
@@ -242,6 +258,7 @@ func initProcessInternalExec(
 			Docker:             containerID,
 			ParentExecId:       parentExecID,
 			ProcessCredentials: creds,
+			Info: info,
 			Refcnt:             0,
 		},
 		capabilities: caps,

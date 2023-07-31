@@ -121,7 +121,6 @@ message UserNamespace {
     Namespace ns = 4;
 }
 
-
 message ProcessCredentials {
     // The real user ID
     google.protobuf.UInt32Value uid = 1;
@@ -145,6 +144,19 @@ message ProcessCredentials {
     Capabilities caps = 10;
     // User namespace where the UIDs, GIDs and capabilities are relative to. */
     UserNamespace user_ns = 11;
+}
+
+message PrivilegedExec {
+    // The set user ID used for execution
+    google.protobuf.UInt32Value setuid = 1;
+    // The set group ID used for execution
+    google.protobuf.UInt32Value setgid = 2;
+    // Indicate the reason of this privileged execution
+    string flags = 3;
+}
+
+message ProcessInfo {
+    PrivilegedExec privileged_exec = 1;
 }
 
 message Process {
@@ -236,8 +248,11 @@ message Process {
     Namespaces ns = 15;
     // Thread ID, note that for the thread group leader, tid is equal to pid.
     google.protobuf.UInt32Value tid = 16;
+
     // Process credentials
     ProcessCredentials process_credentials = 17;
+    // Extra information about the process and its execution
+    ProcessInfo info = 18;
 }
 
 message ProcessExec {

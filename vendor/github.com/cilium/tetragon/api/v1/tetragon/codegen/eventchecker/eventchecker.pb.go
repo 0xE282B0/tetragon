@@ -2769,6 +2769,146 @@ nextCheck:
 	return nil
 }
 
+// PrivilegedExecChecker implements a checker struct to check a PrivilegedExec field
+type PrivilegedExecChecker struct {
+	Setuid *uint32                      `json:"setuid,omitempty"`
+	Setgid *uint32                      `json:"setgid,omitempty"`
+	Flags  *stringmatcher.StringMatcher `json:"flags,omitempty"`
+}
+
+// NewPrivilegedExecChecker creates a new PrivilegedExecChecker
+func NewPrivilegedExecChecker() *PrivilegedExecChecker {
+	return &PrivilegedExecChecker{}
+}
+
+// Get the type of the checker as a string
+func (checker *PrivilegedExecChecker) GetCheckerType() string {
+	return "PrivilegedExecChecker"
+}
+
+// Check checks a PrivilegedExec field
+func (checker *PrivilegedExecChecker) Check(event *tetragon.PrivilegedExec) error {
+	if event == nil {
+		return fmt.Errorf("%s: PrivilegedExec field is nil", CheckerLogPrefix(checker))
+	}
+
+	fieldChecks := func() error {
+		if checker.Setuid != nil {
+			if event.Setuid == nil {
+				return fmt.Errorf("Setuid is nil and does not match expected value %v", *checker.Setuid)
+			}
+			if *checker.Setuid != event.Setuid.Value {
+				return fmt.Errorf("Setuid has value %v which does not match expected value %v", event.Setuid.Value, *checker.Setuid)
+			}
+		}
+		if checker.Setgid != nil {
+			if event.Setgid == nil {
+				return fmt.Errorf("Setgid is nil and does not match expected value %v", *checker.Setgid)
+			}
+			if *checker.Setgid != event.Setgid.Value {
+				return fmt.Errorf("Setgid has value %v which does not match expected value %v", event.Setgid.Value, *checker.Setgid)
+			}
+		}
+		if checker.Flags != nil {
+			if err := checker.Flags.Match(event.Flags); err != nil {
+				return fmt.Errorf("Flags check failed: %w", err)
+			}
+		}
+		return nil
+	}
+	if err := fieldChecks(); err != nil {
+		return fmt.Errorf("%s: %w", CheckerLogPrefix(checker), err)
+	}
+	return nil
+}
+
+// WithSetuid adds a Setuid check to the PrivilegedExecChecker
+func (checker *PrivilegedExecChecker) WithSetuid(check uint32) *PrivilegedExecChecker {
+	checker.Setuid = &check
+	return checker
+}
+
+// WithSetgid adds a Setgid check to the PrivilegedExecChecker
+func (checker *PrivilegedExecChecker) WithSetgid(check uint32) *PrivilegedExecChecker {
+	checker.Setgid = &check
+	return checker
+}
+
+// WithFlags adds a Flags check to the PrivilegedExecChecker
+func (checker *PrivilegedExecChecker) WithFlags(check *stringmatcher.StringMatcher) *PrivilegedExecChecker {
+	checker.Flags = check
+	return checker
+}
+
+//FromPrivilegedExec populates the PrivilegedExecChecker using data from a PrivilegedExec field
+func (checker *PrivilegedExecChecker) FromPrivilegedExec(event *tetragon.PrivilegedExec) *PrivilegedExecChecker {
+	if event == nil {
+		return checker
+	}
+	if event.Setuid != nil {
+		val := event.Setuid.Value
+		checker.Setuid = &val
+	}
+	if event.Setgid != nil {
+		val := event.Setgid.Value
+		checker.Setgid = &val
+	}
+	checker.Flags = stringmatcher.Full(event.Flags)
+	return checker
+}
+
+// ProcessInfoChecker implements a checker struct to check a ProcessInfo field
+type ProcessInfoChecker struct {
+	PrivilegedExec *PrivilegedExecChecker `json:"privilegedExec,omitempty"`
+}
+
+// NewProcessInfoChecker creates a new ProcessInfoChecker
+func NewProcessInfoChecker() *ProcessInfoChecker {
+	return &ProcessInfoChecker{}
+}
+
+// Get the type of the checker as a string
+func (checker *ProcessInfoChecker) GetCheckerType() string {
+	return "ProcessInfoChecker"
+}
+
+// Check checks a ProcessInfo field
+func (checker *ProcessInfoChecker) Check(event *tetragon.ProcessInfo) error {
+	if event == nil {
+		return fmt.Errorf("%s: ProcessInfo field is nil", CheckerLogPrefix(checker))
+	}
+
+	fieldChecks := func() error {
+		if checker.PrivilegedExec != nil {
+			if err := checker.PrivilegedExec.Check(event.PrivilegedExec); err != nil {
+				return fmt.Errorf("PrivilegedExec check failed: %w", err)
+			}
+		}
+		return nil
+	}
+	if err := fieldChecks(); err != nil {
+		return fmt.Errorf("%s: %w", CheckerLogPrefix(checker), err)
+	}
+	return nil
+}
+
+// WithPrivilegedExec adds a PrivilegedExec check to the ProcessInfoChecker
+func (checker *ProcessInfoChecker) WithPrivilegedExec(check *PrivilegedExecChecker) *ProcessInfoChecker {
+	checker.PrivilegedExec = check
+	return checker
+}
+
+//FromProcessInfo populates the ProcessInfoChecker using data from a ProcessInfo field
+func (checker *ProcessInfoChecker) FromProcessInfo(event *tetragon.ProcessInfo) *ProcessInfoChecker {
+	if event == nil {
+		return checker
+	}
+	if event.PrivilegedExec != nil {
+		checker.PrivilegedExec = NewPrivilegedExecChecker().FromPrivilegedExec(event.PrivilegedExec)
+	}
+	return checker
+}
+
 // ProcessChecker implements a checker struct to check a Process field
 type ProcessChecker struct {
 	ExecId             *stringmatcher.StringMatcher       `json:"execId,omitempty"`
@@ -2788,6 +2928,7 @@ type ProcessChecker struct {
 	Ns                 *NamespacesChecker                 `json:"ns,omitempty"`
 	Tid                *uint32                            `json:"tid,omitempty"`
 	ProcessCredentials *ProcessCredentialsChecker         `json:"processCredentials,omitempty"`
+	Info               *ProcessInfoChecker                `json:"info,omitempty"`
 }
 
 // NewProcessChecker creates a new ProcessChecker
@@ -2904,6 +3045,11 @@ func (checker *ProcessChecker) Check(event *tetragon.Process) error {
 				return fmt.Errorf("ProcessCredentials check failed: %w", err)
 			}
 		}
+		if checker.Info != nil {
+			if err := checker.Info.Check(event.Info); err != nil {
+				return fmt.Errorf("Info check failed: %w", err)
+			}
+		}
 		return nil
 	}
 	if err := fieldChecks(); err != nil {
@@ -3014,6 +3160,12 @@ func (checker *ProcessChecker) WithProcessCredentials(check *ProcessCredentialsC
 	return checker
 }
 
+// WithInfo adds a Info check to the ProcessChecker
+func (checker *ProcessChecker) WithInfo(check *ProcessInfoChecker) *ProcessChecker {
+	checker.Info = check
+	return checker
+}
+
 //FromProcess populates the ProcessChecker using data from a Process field
 func (checker *ProcessChecker) FromProcess(event *tetragon.Process) *ProcessChecker {
 	if event == nil {
@@ -3059,6 +3211,9 @@ func (checker *ProcessChecker) FromProcess(event *tetragon.Process) *ProcessChec
 	}
 	if event.ProcessCredentials != nil {
 		checker.ProcessCredentials = NewProcessCredentialsChecker().FromProcessCredentials(event.ProcessCredentials)
+	}
+	if event.Info != nil {
+		checker.Info = NewProcessInfoChecker().FromProcessInfo(event.Info)
 	}
 	return checker
 }
