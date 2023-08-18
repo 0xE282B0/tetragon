@@ -288,7 +288,9 @@ func GetProcessExit(event *MsgExitEventUnix) *tetragon.ProcessExit {
 	code := event.Info.Code >> 8
 	signal := readerexec.Signal(event.Info.Code & 0xFF)
 
-	// Ensure that we get PID == TID
+	// Per thread tracking rules PID == TID: ensure that we get TID equals PID.
+	//
+	// TODO: remove the TID from bpf side and the following check.
 	if event.ProcessKey.Pid != event.Info.Tid {
 		logger.GetLogger().WithFields(logrus.Fields{
 			"event.name":        "Exit",
